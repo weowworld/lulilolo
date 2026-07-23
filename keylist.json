@@ -1,7 +1,7 @@
 {
   "WEOW": {
     "expiry": "2026-07-25T23:59:59",
-    "active": true,
+    "active": false,
     "device_limit": 1,
     "devices": [
       "DEV_6a611a25_1f58ab75c"
@@ -16,5 +16,15 @@
       "DEVICE_001"
     ],
     "created": "2026-07-22T17:52:24.006140"
+  },
+  "99CBRR90NWLK": {
+    "expiry": "2026-07-25T23:59:59",
+    "active": true,
+    "device_limit": 1,
+    "devices": [],
+    "files": [
+      "1.lua"
+    ],
+    "created": "2026-07-23T17:31:42.864464"
   }
 }
