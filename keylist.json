@@ -12,7 +12,9 @@
     "expiry": "2026-07-30T23:59:59",
     "active": true,
     "device_limit": 1,
-    "devices": [],
+    "devices": [
+      "DEV_6a625fa2_188299dba"
+    ],
     "created": "2026-07-23T23:28:10.916792"
   }
 }
