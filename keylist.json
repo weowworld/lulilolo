@@ -1,7 +1,7 @@
 {
   "WEOW": {
     "expiry": "2026-07-25T23:59:59",
-    "active": true,
+    "active": false,
     "device_limit": 1,
     "devices": [
       "DEV_6a6222c9_17b2c9ccc"
