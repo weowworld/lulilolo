@@ -1,7 +1,7 @@
 {
   "WEOW": {
     "expiry": "2026-07-25T23:59:59",
-    "active": true,
+    "active": false,
     "device_limit": 1,
     "devices": [
       "DEV_6a611a25_1f58ab75c"
@@ -25,5 +25,12 @@
       "DEV_6a620628_17e867497"
     ],
     "created": "2026-07-23T17:31:42.864464"
+  },
+  "SUMITRAND": {
+    "expiry": "2026-07-25T23:59:59",
+    "active": true,
+    "device_limit": 1,
+    "devices": [],
+    "created": "2026-07-23T17:58:19.240908"
   }
 }
