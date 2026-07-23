@@ -7,5 +7,12 @@
       "DEV_6a6222c9_17b2c9ccc"
     ],
     "created": "2026-07-23T19:43:36.435202"
+  },
+  "VIPKEYUSERFRIST": {
+    "expiry": "2026-05-30T23:59:59",
+    "active": true,
+    "device_limit": 1,
+    "devices": [],
+    "created": "2026-07-23T23:28:10.916792"
   }
 }
