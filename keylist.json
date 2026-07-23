@@ -3,9 +3,7 @@
     "expiry": "2026-07-25T23:59:59",
     "active": true,
     "device_limit": 1,
-    "devices": [
-      "DEV_6a6222c9_17b2c9ccc"
-    ],
+    "devices": [],
     "created": "2026-07-23T19:43:36.435202"
   }
 }
