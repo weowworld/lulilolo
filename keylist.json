@@ -1,1 +1,9 @@
-{}
+{
+  "WEOW": {
+    "expiry": "2026-06-25T23:59:59",
+    "active": true,
+    "device_limit": 1,
+    "devices": [],
+    "created": "2026-07-23T19:43:36.435202"
+  }
+}
