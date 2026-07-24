@@ -1,25 +1,39 @@
--- ============================================
--- KONG MOD - FLOATING MENU (FULLY FIXED)
--- ============================================
-
 local FloatConfig = {
-    CONFIG_FILE = "/storage/emulated/0/Android/data/com.pubg.imobile/files/KONG.ini",
+    CONFIG_FILE = "/storage/emulated/0/Android/data/com.pubg.imobile/files/ZOULEMOD.ini",
+    HEADER_FILE = "/storage/emulated/0/Android/data/com.pubg.imobile/files/MenuConfig.h", -- Path for the .h toggle file
     defaults = {
-        ktyBSia = true,  -- 🔥 FIXED: Default enabled
+        ktyBSia = true, -- Changed to true so menu works by default
         kFloatPosX = 0,
         kFloatPosY = 0,
         k9K3WqPBJ1 = 1,
     },
     current = {},
     Load = function(self)
+        self:CheckHeaderToggle() -- Check the .h file first
         local content = self:ReadConfigFile()
         if content and content ~= "" then
             self:ParseConfig(content)
         else
             for key, value in pairs(self.defaults) do
-                self.current[key] = value
+                if self.current[key] == nil then
+                    self.current[key] = value
+                end
             end
         end
+    end,
+    CheckHeaderToggle = function(self)
+        local success, result = pcall(function()
+            local file = io.open(self.HEADER_FILE, "r")
+            if file then
+                local content = file:read("*a"):lower()
+                file:close()
+                if content:find("on") then
+                    self.current["ktyBSia"] = true
+                elseif content:find("off") then
+                    self.current["ktyBSia"] = false
+                end
+            end
+        end)
     end,
     ReadConfigFile = function(self)
         local success, result = pcall(function()
@@ -47,7 +61,6 @@ local FloatConfig = {
                 if key and val then
                     key = key:gsub("^%s+", ""):gsub("%s+$", "")
                     val = val:gsub("^%s+", ""):gsub("%s+$", "")
-                    -- 🔥 FIXED: Boolean parsing for both "true"/"false" and "1"/"0"
                     if val == "true" or val == "1" then
                         self.current[key] = true
                     elseif val == "false" or val == "0" then
@@ -66,7 +79,7 @@ local FloatConfig = {
     end,
     Save = function(self)
         local lines = {}
-        table.insert(lines, "# KONG_MOD")
+        table.insert(lines, "# ZOULE_MOD")
         table.insert(lines, "ver=1")
         for key, value in pairs(self.current) do
             if type(value) == "boolean" then
@@ -107,97 +120,6 @@ local FloatConfig = {
     end,
 }
 
--- ============================================
--- LOGGING SYSTEM (Real-time .h file)
--- ============================================
-
-local KONG_LOG = {
-    file = nil,
-    path = "/storage/emulated/0/Android/data/com.pubg.imobile/files/KONG_MOD_LOG.h",
-    enabled = true,
-    buffer = {},
-    maxBuffer = 50,
-    Init = function(self)
-        if not self.enabled then return end
-        pcall(function()
-            -- Create/Open log file
-            local f = io.open(self.path, "w")
-            if f then
-                f:write("// KONG MOD - Real-time Log\n")
-                f:write("// Last Updated: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
-                f:write("// ========================================\n\n")
-                f:close()
-            end
-        end)
-        self:Write("LOG_INIT", "KONG MOD Logging Started!")
-        self:Write("VERSION", "V4.5")
-    end,
-    Write = function(self, tag, message)
-        if not self.enabled then return end
-        local timestamp = os.date("%H:%M:%S")
-        local logLine = string.format('#define KONG_%s "%s [%s]"\n', tag, timestamp, message)
-        table.insert(self.buffer, logLine)
-        
-        -- Flush if buffer is full
-        if #self.buffer >= self.maxBuffer then
-            self:Flush()
-        end
-        
-        -- Also write to console if available
-        pcall(function()
-            if print then
-                print("[KONG] " .. tag .. ": " .. message)
-            end
-        end)
-    end,
-    Flush = function(self)
-        if not self.enabled or #self.buffer == 0 then return end
-        pcall(function()
-            local f = io.open(self.path, "a")
-            if f then
-                for _, line in ipairs(self.buffer) do
-                    f:write(line)
-                end
-                f:write("\n")
-                f:close()
-                self.buffer = {}
-            end
-        end)
-    end,
-    WriteConfig = function(self, key, value)
-        self:Write("CONFIG_" .. key, tostring(value))
-    end,
-    WriteMenu = function(self, action)
-        self:Write("MENU_" .. action, "Menu " .. action)
-    end,
-    WriteFeature = function(self, feature, enabled)
-        self:Write("FEATURE_" .. feature, enabled and "ENABLED" or "DISABLED")
-    end,
-    WriteError = function(self, errorMsg)
-        self:Write("ERROR", errorMsg)
-    end,
-    Close = function(self)
-        self:Flush()
-        self:Write("LOG_END", "Logging Stopped")
-        pcall(function()
-            local f = io.open(self.path, "a")
-            if f then
-                f:write("\n// ========================================\n")
-                f:write("// Log Ended at: " .. os.date("%Y-%m-%d %H:%M:%S") .. "\n")
-                f:close()
-            end
-        end)
-        self.enabled = false
-    end
-}
-
--- Initialize logging
-KONG_LOG:Init()
-
--- ============================================
--- FLOAT MENU MAIN CLASS
--- ============================================
-
 local FloatMenu = {
     isOpen = false,
     floatBtn = nil,
@@ -214,21 +136,16 @@ local FloatMenu = {
     currentTab = 1,
     _toggleGuard = false,
     _eventsBound = false,
-    _logEnabled = true,
 }
 
-function FloatMenu:Log(tag, message)
-    if not self._logEnabled then return end
-    KONG_LOG:Write(tag, message)
-end
-
 function FloatMenu:Initialize()
-    self:Log("INIT", "Initializing Floating Menu...")
     FloatConfig:Load()
     self:RestorePosition()
-    self:EnsureTrigger()
-    self:Log("INIT", "Menu Initialized Successfully!")
-    self:Log("MENU_STATUS", FloatConfig:IsEnabled("ktyBSia") and "ENABLED" or "DISABLED")
+    if FloatConfig:IsEnabled("ktyBSia") then
+        self:EnsureTrigger()
+    else
+        self:DestroyFloatButton()
+    end
 end
 
 function FloatMenu:EnsureTrigger()
@@ -248,27 +165,17 @@ function FloatMenu:IsValidWidget(widget)
 end
 
 function FloatMenu:CreateFloatButton()
-    self:Log("BUTTON", "Creating floating button...")
     self:DestroyFloatButton()
     local btn = self:LoadWidget("/Game/UMG/UI_BP/Common/BaseComponent/CommonBaseComponent_TextButton_UIBP")
-    if not btn then 
-        self:Log("ERROR", "Failed to load button widget!")
-        return 
-    end
-    if not self:IsValidWidget(btn) then 
-        self:Log("ERROR", "Button widget invalid!")
-        return 
-    end
-    
+    if not btn then return end
+    if not self:IsValidWidget(btn) then return end
     btn:SetWidgetVisibility(self:GetVisibility("Visible"))
     btn:SetRenderOpacity(1)
-    
     local text = btn.RichText_Content or btn.Text
     if text and self:IsValidWidget(text) then
-        text:SetText("KONG MOD")
+        text:SetText("ZOULE MOD")
         self:ApplyTextStyle(text, 18)
     end
-    
     local bg = btn.Image_Bg or btn.Image_BtnBg
     if bg and self:IsValidWidget(bg) then
         bg:SetBrushFromPathAsync("/Game/UMG/Texture/Atlas/Common/Common_Image_White.Common_Image_White", false)
@@ -276,7 +183,6 @@ function FloatMenu:CreateFloatButton()
         bg:SetRenderOpacity(1)
         bg:SetWidgetVisibility(self:GetVisibility("SelfHitTestInvisible"))
     end
-    
     local icon = btn.Image_Icon
     if icon and self:IsValidWidget(icon) then
         icon:SetBrushFromPathAsync("/Game/UMG/Texture/Atlas/Common_Atlas/Frames/lobby_download_btn_drag_icon.lobby_download_btn_drag_icon", false)
@@ -284,7 +190,6 @@ function FloatMenu:CreateFloatButton()
         icon:SetRenderOpacity(1)
         icon:SetWidgetVisibility(self:GetVisibility("SelfHitTestInvisible"))
     end
-    
     self:AddToViewport(btn)
     local posX, posY = self:GetSavedPosition()
     self:SetButtonPosition(btn, posX, posY)
@@ -293,7 +198,6 @@ function FloatMenu:CreateFloatButton()
     self:BindDragEvents()
     self:BindClickEvent()
     self:BindBallEvents()
-    self:Log("BUTTON", "Button created successfully at position: " .. posX .. ", " .. posY)
 end
 
 function FloatMenu:DestroyFloatButton()
@@ -305,7 +209,6 @@ function FloatMenu:DestroyFloatButton()
         end)
         self.floatBtn = nil
         self.floatSlot = nil
-        self:Log("BUTTON", "Button destroyed")
     end
 end
 
@@ -356,14 +259,13 @@ function FloatMenu:GetVisibility(mode)
     return vis[mode] or 1
 end
 
--- 🔥 FIXED: GetScreenSize with proper viewport
 function FloatMenu:GetScreenSize()
     local w, h = 1920, 1080
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
             local success, sw, sh = pcall(function()
-                return pc:GetViewportSize()  -- ✅ Fixed: No parameters
+                return pc:GetViewportSize(0, 0)
             end)
             if success and sw and sw > 0 then
                 w, h = sw, sh
@@ -469,7 +371,6 @@ function FloatMenu:SavePosition(x, y)
     FloatConfig:Set("kFloatPosX", math.floor(x))
     FloatConfig:Set("kFloatPosY", math.floor(y))
     FloatConfig:Save()
-    self:Log("POSITION", "Saved position: " .. math.floor(x) .. ", " .. math.floor(y))
 end
 
 function FloatMenu:ClampPosition(x, y)
@@ -532,40 +433,11 @@ function FloatMenu:ApplyTextStyle(widget, size)
     end)
 end
 
--- 🔥 FIXED: AddTimer with proper fallback
-function FloatMenu:AddTimer(delay, callback)
-    local added = false
-    pcall(function()
-        local ticker = _G.Mytimer_ticker
-        if not ticker then
-            ticker = require("common.time_ticker")
-            _G.Mytimer_ticker = ticker
-        end
-        if ticker and ticker.AddTimer then
-            ticker:AddTimer(delay, callback)
-            added = true
-        end
-    end)
-    if not added then
-        pcall(function()
-            local pc = self:GetPlayerController()
-            if pc and self:IsValidWidget(pc) and pc.AddGameTimer then
-                pc:AddGameTimer(delay, false, callback)
-                added = true
-            end
-        end)
-    end
-    if not added then
-        self:Log("TIMER", "Warning: No timer system available!")
-    end
-end
-
 function FloatMenu:BindDragEvents()
     local btn = self.floatBtn
     if not btn or not self:IsValidWidget(btn) then return end
     local trigger = btn.Button_Temp or btn
     self.dragState = nil
-    
     self:AddControlEvent(trigger, "OnMouseButtonDownEvent", function(event)
         local mx, my = self:GetMousePosition(event)
         local bx, by = self:GetButtonCurrentPosition()
@@ -579,7 +451,6 @@ function FloatMenu:BindDragEvents()
             _ticks = 0,
         }
     end)
-    
     self:AddControlEvent(trigger, "OnMouseMoveEvent", function(event)
         if not self.dragState or not self.dragState.active then return end
         local mx, my = self:GetMousePosition(event)
@@ -595,7 +466,6 @@ function FloatMenu:BindDragEvents()
             self:SavePosition(newX, newY)
         end
     end)
-    
     self:AddControlEvent(trigger, "OnMouseButtonUpEvent", function()
         if self.dragState and self.dragState.moved then
             self.isDragging = false
@@ -606,7 +476,6 @@ function FloatMenu:BindDragEvents()
         end
         self.dragState = nil
     end)
-    
     self:AddControlEvent(trigger, "OnTouchStartedImplementation", function(event)
         local mx, my = self:GetMousePosition(event)
         local bx, by = self:GetButtonCurrentPosition()
@@ -620,7 +489,6 @@ function FloatMenu:BindDragEvents()
             _ticks = 0,
         }
     end)
-    
     self:AddControlEvent(trigger, "OnTouchMovedImplementation", function(event)
         if not self.dragState or not self.dragState.active then return end
         local mx, my = self:GetMousePosition(event)
@@ -636,7 +504,6 @@ function FloatMenu:BindDragEvents()
             self:SavePosition(newX, newY)
         end
     end)
-    
     self:AddControlEvent(trigger, "OnTouchEndedImplementation", function()
         if self.dragState and self.dragState.moved then
             self.isDragging = false
@@ -715,9 +582,25 @@ function FloatMenu:BindBallEvents()
     self._eventsBound = true
 end
 
--- ============================================
--- MENU OPEN/CLOSE (WITH REAL-TIME LOGGING)
--- ============================================
+function FloatMenu:AddTimer(delay, callback)
+    pcall(function()
+        local ticker = _G.Mytimer_ticker
+        if not ticker then
+            ticker = require("common.time_ticker")
+            _G.Mytimer_ticker = ticker
+        end
+        if ticker and ticker.AddTimer then
+            ticker:AddTimer(delay, callback)
+            return
+        end
+    end)
+    pcall(function()
+        local pc = self:GetPlayerController()
+        if pc and self:IsValidWidget(pc) and pc.AddGameTimer then
+            pc:AddGameTimer(delay, false, callback)
+        end
+    end)
+end
 
 function FloatMenu:Toggle()
     if self._toggleGuard then return end
@@ -733,54 +616,25 @@ function FloatMenu:Toggle()
 end
 
 function FloatMenu:Open()
-    if self.isOpen then 
-        self:Log("MENU", "Menu already open!")
-        return 
-    end
-    
-    -- 🔥 FIXED: Check and auto-enable if needed
+    if self.isOpen then return end
     if FloatConfig:IsEnabled("ktyBSia") == false then
-        self:Log("MENU", "Menu disabled, enabling...")
-        FloatConfig:Set("ktyBSia", true)
-        FloatConfig:Save()
+        return
     end
-    
-    self:Log("MENU", "Opening menu...")
     self:EnsureTrigger()
-    
-    if not self.floatBtn or not self:IsValidWidget(self.floatBtn) then
-        self:Log("ERROR", "Button not valid, cannot open menu!")
-        return 
-    end
-    
+    if not self.floatBtn or not self:IsValidWidget(self.floatBtn) then return end
     local panel, canvas = self:CreateMenuPanel()
-    if not panel or not canvas then 
-        self:Log("ERROR", "Failed to create menu panel!")
-        return 
-    end
-    
+    if not panel or not canvas then return end
     self.menuWidget = panel
     self.panelRoot = panel
     self.panelCanvas = canvas
     self.isOpen = true
-    
     self:BuildMenuOptions(canvas)
     self:AddCloseButton(canvas)
     self:AddTitle(canvas)
-    
-    self:Log("MENU", "Menu opened successfully!")
-    KONG_LOG:WriteMenu("OPENED")
-    KONG_LOG:WriteConfig("ktyBSia", "1")
 end
 
 function FloatMenu:Close()
-    if not self.isOpen then 
-        self:Log("MENU", "Menu already closed!")
-        return 
-    end
-    
-    self:Log("MENU", "Closing menu...")
-    
+    if not self.isOpen then return end
     if self.settingsPage then
         pcall(function()
             if self.settingsPage.Close then
@@ -789,7 +643,6 @@ function FloatMenu:Close()
         end)
         self.settingsPage = nil
     end
-    
     if self.menuWidget then
         pcall(function()
             if self:IsValidWidget(self.menuWidget) then
@@ -798,28 +651,18 @@ function FloatMenu:Close()
         end)
         self.menuWidget = nil
     end
-    
     self.panelRoot = nil
     self.panelCanvas = nil
     self.closeBtn = nil
     self.isOpen = false
-    
     FloatConfig:Save()
-    self:Log("MENU", "Menu closed successfully!")
-    KONG_LOG:WriteMenu("CLOSED")
-    KONG_LOG:WriteConfig("ktyBSia", "0")
 end
-
--- ============================================
--- MENU UI BUILDING
--- ============================================
 
 function FloatMenu:CreateMenuPanel()
     local panel = self:LoadWidget("/Game/UMG/UI_BP/Common/Common_Mask_UIBP")
     if not panel or not self:IsValidWidget(panel) then return nil, nil end
     panel:SetWidgetVisibility(self:GetVisibility("Visible"))
     panel:SetRenderOpacity(1)
-    
     local bg = panel.Image_Bg or panel.Image_Mask
     if bg and self:IsValidWidget(bg) then
         bg:SetBrushFromPathAsync("/Game/UMG/Texture/Atlas/Common/Common_Image_White.Common_Image_White", false)
@@ -827,16 +670,13 @@ function FloatMenu:CreateMenuPanel()
         bg:SetRenderOpacity(1)
         bg:SetWidgetVisibility(self:GetVisibility("SelfHitTestInvisible"))
     end
-    
     self:AddToViewport(panel)
-    
     local canvas = self:CreateCanvasPanel()
     if canvas and self:IsValidWidget(canvas) then
         panel:SetContent(canvas)
         canvas:SetWidgetVisibility(self:GetVisibility("Visible"))
         canvas:SetRenderOpacity(1)
     end
-    
     return panel, canvas
 end
 
@@ -859,7 +699,7 @@ function FloatMenu:AddTitle(parent)
     if not parent or not self:IsValidWidget(parent) then return end
     local title = self:CreateTextBlock()
     if not title then return end
-    title:SetText("KONG MOD V4.5")
+    title:SetText("ZOULE MOD " .. "V4.5")
     title:SetWidgetVisibility(self:GetVisibility("SelfHitTestInvisible"))
     title:SetRenderOpacity(1)
     local slot = parent:AddChildToCanvas(title)
@@ -890,14 +730,12 @@ function FloatMenu:AddCloseButton(parent)
     if not btn or not self:IsValidWidget(btn) then return end
     btn:SetWidgetVisibility(self:GetVisibility("Visible"))
     btn:SetRenderOpacity(1)
-    
     local text = btn.RichText_Content or btn.Text
     if text and self:IsValidWidget(text) then
         text:SetText("X")
         text:SetColorAndOpacity(FSlateColor(FLinearColor(1, 1, 1, 1)))
         self:ApplyTextStyle(text, 24)
     end
-    
     local bg = btn.Image_Bg or btn.Image_BtnBg
     if bg and self:IsValidWidget(bg) then
         bg:SetBrushFromPathAsync("/Game/UMG/Texture/Atlas/Common/Common_Image_White.Common_Image_White", false)
@@ -905,14 +743,12 @@ function FloatMenu:AddCloseButton(parent)
         bg:SetRenderOpacity(1)
         bg:SetWidgetVisibility(self:GetVisibility("SelfHitTestInvisible"))
     end
-    
     local trigger = btn.Button_Temp or btn
     local slot = parent:AddChildToCanvas(btn)
     if slot then
         slot:SetAnchors(FAnchors(0.88, 0.01, 0.99, 0.09))
         slot:SetZOrder(500)
     end
-    
     self:AddControlEvent(trigger, "OnClicked", function()
         self:Close()
     end)
@@ -927,7 +763,6 @@ function FloatMenu:BuildMenuOptions(parent)
     local yOffset = 60
     local rowHeight = 52
     local itemSpacing = 10
-    
     for i, item in ipairs(items) do
         local widget = self:CreateMenuItem(item)
         if widget and self:IsValidWidget(widget) then
@@ -941,12 +776,18 @@ function FloatMenu:BuildMenuOptions(parent)
             end
         end
     end
-    
     self:BuildTabs(parent, tabData, currentTab)
 end
 
 function FloatMenu:GetTabData()
-    return {"ESP", "战斗", "武器修改", "自瞄", "移动", "其他"}
+    return {
+        "ESP",
+        "战斗",
+        "武器修改",
+        "自瞄",
+        "移动",
+        "其他",
+    }
 end
 
 function FloatMenu:GetTabItems(tabIndex)
@@ -1030,7 +871,6 @@ function FloatMenu:CreateMenuItem(item)
     if not widget or not self:IsValidWidget(widget) then return nil end
     widget:SetWidgetVisibility(self:GetVisibility("Visible"))
     widget:SetRenderOpacity(1)
-    
     local value = FloatConfig:Get(item.key)
     local displayText = item.label
     if item.kind == "toggle" then
@@ -1038,13 +878,11 @@ function FloatMenu:CreateMenuItem(item)
     elseif item.kind == "slider" then
         displayText = displayText .. "  [" .. tostring(value or item.default) .. "]"
     end
-    
     local text = widget.RichText_Content or widget.Text
     if text and self:IsValidWidget(text) then
         text:SetText(displayText)
         self:ApplyTextStyle(text, 18)
     end
-    
     local bg = widget.Image_Bg or widget.Image_BtnBg
     if bg and self:IsValidWidget(bg) then
         bg:SetBrushFromPathAsync("/Game/UMG/Texture/Atlas/Common/Common_Image_White.Common_Image_White", false)
@@ -1052,7 +890,6 @@ function FloatMenu:CreateMenuItem(item)
         bg:SetRenderOpacity(1)
         bg:SetWidgetVisibility(self:GetVisibility("SelfHitTestInvisible"))
     end
-    
     local trigger = widget.Button_Temp or widget
     self:AddControlEvent(trigger, "OnClicked", function()
         self:OnMenuItemClick(item)
@@ -1062,16 +899,12 @@ end
 
 function FloatMenu:OnMenuItemClick(item)
     local current = FloatConfig:Get(item.key)
-    
     if item.kind == "toggle" then
         local newVal = not current
         FloatConfig:Set(item.key, newVal)
         FloatConfig:Save()
-        self:Log("FEATURE", item.label .. " -> " .. (newVal and "ON" or "OFF"))
-        KONG_LOG:WriteFeature(item.key, newVal)
         self:RefreshMenu()
         self:ApplyConfig(item.key, newVal)
-        
     elseif item.kind == "slider" then
         local step = 1
         if item.key == "kNewAimPart" then step = 1 end
@@ -1082,8 +915,6 @@ function FloatMenu:OnMenuItemClick(item)
         end
         FloatConfig:Set(item.key, newVal)
         FloatConfig:Save()
-        self:Log("FEATURE", item.label .. " -> " .. newVal)
-        KONG_LOG:WriteConfig(item.key, newVal)
         self:RefreshMenu()
         self:ApplyConfig(item.key, newVal)
     end
@@ -1123,7 +954,6 @@ function FloatMenu:BuildTabs(parent, tabData, currentTab)
                 if newTab ~= currentTab then
                     FloatConfig:Set("k9K3WqPBJ1", newTab)
                     FloatConfig:Save()
-                    self:Log("TAB", "Switched to tab: " .. tabName)
                     self:RefreshMenu()
                 end
             end)
@@ -1136,13 +966,11 @@ function FloatMenu:CreateTabButton(text, isSelected)
     if not widget or not self:IsValidWidget(widget) then return nil end
     widget:SetWidgetVisibility(self:GetVisibility("Visible"))
     widget:SetRenderOpacity(1)
-    
     local txt = widget.RichText_Content or widget.Text
     if txt and self:IsValidWidget(txt) then
         txt:SetText(text)
         self:ApplyTextStyle(txt, 16)
     end
-    
     local bg = widget.Image_Bg or widget.Image_BtnBg
     if bg and self:IsValidWidget(bg) then
         bg:SetBrushFromPathAsync("/Game/UMG/Texture/Atlas/Common/Common_Image_White.Common_Image_White", false)
@@ -1157,10 +985,6 @@ function FloatMenu:CreateTabButton(text, isSelected)
     return widget
 end
 
--- ============================================
--- APPLY FUNCTIONS (With Logging)
--- ============================================
-
 function FloatMenu:ApplyConfig(key, value)
     pcall(function()
         local func = self["_Apply_" .. key]
@@ -1171,17 +995,16 @@ function FloatMenu:ApplyConfig(key, value)
 end
 
 function FloatMenu:_Apply_ktyBSia(value)
-    self:Log("MAIN_TOGGLE", "Menu toggle: " .. (value and "ON" or "OFF"))
     if not value then
         self:Close()
+        self:DestroyFloatButton()
     else
-        self:Open()
+        self:EnsureTrigger()
     end
 end
 
 function FloatMenu:_Apply_kgiOsFCb(value)
     if value then
-        self:Log("FPS", "Setting FPS to 165")
         pcall(function()
             local gi = self:GetGameInstance()
             if gi and self:IsValidWidget(gi) then
@@ -1194,7 +1017,6 @@ end
 
 function FloatMenu:_Apply_k3TQGQ(value)
     if value then
-        self:Log("FOV", "Setting iPad FOV")
         pcall(function()
             local util = require("client.logic.setting.setting_config")
             if util then
@@ -1206,7 +1028,6 @@ function FloatMenu:_Apply_k3TQGQ(value)
 end
 
 function FloatMenu:_Apply_kwQzYrr(value)
-    self:Log("FOV", "Setting FOV to: " .. value)
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1222,7 +1043,6 @@ function FloatMenu:_Apply_kwQzYrr(value)
 end
 
 function FloatMenu:_Apply_kOCoNsC(value)
-    self:Log("WEAPON", "No Recoil: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1245,7 +1065,6 @@ function FloatMenu:_Apply_kOCoNsC(value)
 end
 
 function FloatMenu:_Apply_kFastReloadOn(value)
-    self:Log("WEAPON", "Fast Reload: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1270,7 +1089,6 @@ function FloatMenu:_Apply_kFastReloadOn(value)
 end
 
 function FloatMenu:_Apply_kFastAimOn(value)
-    self:Log("WEAPON", "Fast Aim: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1288,7 +1106,6 @@ function FloatMenu:_Apply_kFastAimOn(value)
 end
 
 function FloatMenu:_Apply_kR8wVJdV(value)
-    self:Log("MOVEMENT", "Speed Hack: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1314,7 +1131,6 @@ function FloatMenu:_Apply_kR8wVJdV(value)
 end
 
 function FloatMenu:_Apply_kcWjWY6(value)
-    self:Log("MOVEMENT", "Super Jump: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1342,35 +1158,7 @@ function FloatMenu:_Apply_kcWjWY6(value)
     end)
 end
 
--- 🔥 FIXED: GetAllMeshComponents with duplicate check
-function FloatMenu:GetAllMeshComponents(actor)
-    local meshes = {}
-    local seen = {}
-    local function addMesh(mesh)
-        if mesh and self:IsValidWidget(mesh) and not seen[mesh] then
-            seen[mesh] = true
-            table.insert(meshes, mesh)
-        end
-    end
-    pcall(function()
-        addMesh(actor.Mesh)
-    end)
-    pcall(function()
-        local lib = import("SkeletalMeshComponent")
-        if lib then
-            local comps = actor:GetComponentsByClass(lib)
-            if comps then
-                for i = 0, comps:Num() - 1 do
-                    addMesh(comps:Get(i))
-                end
-            end
-        end
-    end)
-    return meshes
-end
-
 function FloatMenu:_Apply_k3yxyFCez(value)
-    self:Log("VISUAL", "Wall Hack: " .. (value and "ON" or "OFF"))
     if value then
         self:AddTimer(0.1, function()
             pcall(function()
@@ -1418,8 +1206,32 @@ function FloatMenu:_Apply_k3yxyFCez(value)
     end
 end
 
+function FloatMenu:GetAllMeshComponents(actor)
+    local meshes = {}
+    pcall(function()
+        local mesh = actor.Mesh
+        if mesh and self:IsValidWidget(mesh) then
+            table.insert(meshes, mesh)
+        end
+    end)
+    pcall(function()
+        local lib = import("SkeletalMeshComponent")
+        if lib then
+            local comps = actor:GetComponentsByClass(lib)
+            if comps then
+                for i = 0, comps:Num() - 1 do
+                    local comp = comps:Get(i)
+                    if comp and self:IsValidWidget(comp) then
+                        table.insert(meshes, comp)
+                    end
+                end
+            end
+        end
+    end)
+    return meshes
+end
+
 function FloatMenu:_Apply_kRm7Grass(value)
-    self:Log("VISUAL", "Remove Grass: " .. (value and "ON" or "OFF"))
     pcall(function()
         local gi = self:GetGameInstance()
         if gi and self:IsValidWidget(gi) then
@@ -1433,24 +1245,25 @@ function FloatMenu:_Apply_kRm7Grass(value)
 end
 
 function FloatMenu:_Apply_kSkyColOn(value)
-    self:Log("VISUAL", "Black Sky: " .. (value and "ON" or "OFF"))
     pcall(function()
-        if value then
-            local gi = self:GetGameInstance()
-            if gi and self:IsValidWidget(gi) then
-                gi:ExecuteCMD("r.CylinderMaxDrawHeight", "9999")
-            end
-        else
-            local gi = self:GetGameInstance()
-            if gi and self:IsValidWidget(gi) then
-                gi:ExecuteCMD("r.CylinderMaxDrawHeight", "0")
+        local pc = self:GetPlayerController()
+        if pc and self:IsValidWidget(pc) then
+            if value then
+                local gi = self:GetGameInstance()
+                if gi and self:IsValidWidget(gi) then
+                    gi:ExecuteCMD("r.CylinderMaxDrawHeight", "9999")
+                end
+            else
+                local gi = self:GetGameInstance()
+                if gi and self:IsValidWidget(gi) then
+                    gi:ExecuteCMD("r.CylinderMaxDrawHeight", "0")
+                end
             end
         end
     end)
 end
 
 function FloatMenu:_Apply_kCharScaleOn(value)
-    self:Log("VISUAL", "Character Scale: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1471,7 +1284,6 @@ function FloatMenu:_Apply_kCharScaleOn(value)
 end
 
 function FloatMenu:_Apply_kWpnScaleOn(value)
-    self:Log("VISUAL", "Weapon Scale: " .. (value and "ON" or "OFF"))
     pcall(function()
         local pc = self:GetPlayerController()
         if pc and self:IsValidWidget(pc) then
@@ -1493,7 +1305,6 @@ function FloatMenu:_Apply_kWpnScaleOn(value)
 end
 
 function FloatMenu:_Apply_kSpinOn(value)
-    self:Log("VISUAL", "Auto Spin: " .. (value and "ON" or "OFF"))
     if value then
         self:AddTimer(0.016, function()
             self:SpinLoop()
@@ -1510,8 +1321,9 @@ function FloatMenu:SpinLoop()
             if char and self:IsValidWidget(char) then
                 local mesh = char.Mesh
                 if mesh and self:IsValidWidget(mesh) then
-                    local spd = FloatConfig:Get("kSpinSpd") or 360
-                    mesh:K2_AddLocalRotation(FRotator(0, spd * 0.016, 0), false, nil, false)
+                    local rot = mesh:GetRelativeRotation()
+                    rot.Yaw = rot.Yaw + (FloatConfig:Get("kSpinSpd") or 360) * 0.016
+                    mesh:SetRelativeRotation(rot)
                 end
             end
         end
@@ -1521,60 +1333,19 @@ function FloatMenu:SpinLoop()
     end)
 end
 
--- ============================================
--- DESTROY FUNCTION
--- ============================================
-
 function FloatMenu:Destroy()
-    self:Log("DESTROY", "Destroying menu...")
     self:Close()
     self:DestroyFloatButton()
     self._eventsBound = false
     self.dragState = nil
     self.isDragging = false
     self.dragMoved = false
-    KONG_LOG:Close()
-    self:Log("DESTROY", "Menu destroyed!")
 end
 
--- ============================================
--- GLOBAL FUNCTIONS
--- ============================================
-
-_G.KONG_MOD_SJes35JTx = FloatMenu
-_G.KONG_MOD_AsWJmeFkU = function() 
-    FloatMenu:Log("GLOBAL", "Toggle called from console")
-    FloatMenu:Toggle() 
-end
-_G.KONG_MOD_rsOzAUbtu = function() 
-    FloatMenu:Log("GLOBAL", "Open called from console")
-    FloatMenu:Open() 
-end
-_G.KONG_MOD_bxuVFjp7W = function() 
-    FloatMenu:Log("GLOBAL", "Close called from console")
-    FloatMenu:Close() 
-end
-_G.KONG_MOD_GetStatus = function()
-    return {
-        isOpen = FloatMenu.isOpen,
-        enabled = FloatConfig:IsEnabled("ktyBSia"),
-        buttonExists = FloatMenu.floatBtn ~= nil,
-    }
-end
-_G.KONG_MOD_SetMenuEnabled = function(enabled)
-    FloatConfig:Set("ktyBSia", enabled)
-    FloatConfig:Save()
-    FloatMenu:Log("GLOBAL", "Menu enabled set to: " .. tostring(enabled))
-    if enabled then
-        FloatMenu:Open()
-    else
-        FloatMenu:Close()
-    end
-end
-
--- ============================================
--- INITIALIZATION LOOP
--- ============================================
+_G.ZOULE_MOD_SJes35JTx = FloatMenu
+_G.ZOULE_MOD_AsWJmeFkU = function() FloatMenu:Toggle() end
+_G.ZOULE_MOD_rsOzAUbtu = function() FloatMenu:Open() end
+_G.ZOULE_MOD_bxuVFjp7W = function() FloatMenu:Close() end
 
 local function InitFloatMenu()
     pcall(function()
@@ -1583,10 +1354,22 @@ local function InitFloatMenu()
 end
 
 local function InitLoop()
-    if not FloatMenu.floatBtn or not FloatMenu:IsValidWidget(FloatMenu.floatBtn) then
-        pcall(function()
-            FloatMenu:Initialize()
-        end)
+    -- Reload config every loop to check for .h file changes
+    FloatConfig:Load()
+    
+    if FloatConfig:IsEnabled("ktyBSia") then
+        if not FloatMenu.floatBtn or not FloatMenu:IsValidWidget(FloatMenu.floatBtn) then
+            pcall(function()
+                FloatMenu:Initialize()
+            end)
+        end
+    else
+        if FloatMenu.floatBtn then
+            FloatMenu:DestroyFloatButton()
+        end
+        if FloatMenu.isOpen then
+            FloatMenu:Close()
+        end
     end
 end
 
@@ -1602,33 +1385,3 @@ pcall(function()
 end)
 
 FloatMenu:Initialize()
-
--- ============================================
--- AUTO-OPEN ON START (Optional)
--- ============================================
-
-pcall(function()
-    local ticker = require("common.time_ticker")
-    if ticker then
-        ticker:AddTimer(0.5, function()
-            if FloatConfig:IsEnabled("ktyBSia") then
-                FloatMenu:Open()
-                FloatMenu:Log("AUTO", "Menu auto-opened!")
-            end
-        end)
-    end
-end)
-
-print("========================================")
-print(" KONG MOD V4.5 LOADED SUCCESSFULLY!")
-print("========================================")
-print(" Commands:")
-print("  - KONG_MOD_AsWJmeFkU()  : Toggle Menu")
-print("  - KONG_MOD_rsOzAUbtu()  : Open Menu")
-print("  - KONG_MOD_bxuVFjp7W()  : Close Menu")
-print("  - KONG_MOD_SetMenuEnabled(1/0) : Enable/Disable")
-print("  - KONG_MOD_GetStatus()  : Get Status")
-print("========================================")
-print(" Log File: /storage/emulated/0/Android/data/com.pubg.imobile/files/KONG_MOD_LOG.h")
-print(" Config: /storage/emulated/0/Android/data/com.pubg.imobile/files/KONG.ini")
-print("========================================")
