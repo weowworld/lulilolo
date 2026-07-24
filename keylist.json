@@ -10,7 +10,8 @@
     "allowed_files": [
       "1.lua",
       "2.lua",
-      "3.lua"
+      "3.lua",
+      "5.lua"
     ]
   },
   "VIPKEYUSERFRIST": {
