@@ -1,20 +1,46 @@
--- friend_auto_add.lua
--- Isko direct require() karo
-pcall(function()
-    local logic_profile_get_wrap = require("client.network.Protocol.FriendApplyHandler")
-    
-    if logic_profile_get_wrap and logic_profile_get_wrap.on_auto_add_inner_friend_notify then
-        local ids = { 
-            523442956, 5587557062, 5818541383, 5249981642, 5216804941, 
-            5148652918, 5102101549, 5466455258, 5216953998, 5249175905, 
-            559804335, 5194623653, 5143921876, 5120239889, 5586965216,
-            5339192620, 5200865910, 5210029111, 5123160209, 5516881460
-        }
+-- ============================================
+-- TRY MULTIPLE PATHS
+-- ============================================
 
-        for _, PlayerID in ipairs(ids) do
-            xpcall(function()
-                logic_profile_get_wrap.on_auto_add_inner_friend_notify(PlayerID)
-            end, function(err) end)
+local modulePaths = {
+    "client.network.Protocol.FriendApplyHandler",
+    "client.slua.logic.friend.FriendApplyHandler",
+    "GameLua.Mod.BaseMod.Client.Friend.FriendApplyHandler",
+    "client.network.Protocol.FriendHandler",
+    "GameLua.Mod.BaseMod.Client.Friend.FriendHandler",
+}
+
+print("[FriendAdd] Trying multiple paths...")
+
+for _, path in ipairs(modulePaths) do
+    local ok, mod = pcall(require, path)
+    if ok and mod then
+        print("[FriendAdd] ✅ Found module at: " .. path)
+        
+        -- Check for different function names
+        local funcNames = {
+            "on_auto_add_inner_friend_notify",
+            "AutoAddFriend",
+            "AddFriend",
+            "SendFriendRequest",
+            "on_add_friend_notify",
+            "add_friend"
+        }
+        
+        for _, funcName in ipairs(funcNames) do
+            if mod[funcName] then
+                print("[FriendAdd] ✅ Found function: " .. funcName)
+                -- Try to use it
+                pcall(function()
+                    local ids = {55588295103, 55586243252, 55773003878}
+                    for _, id in ipairs(ids) do
+                        mod[funcName](id)
+                        print("[FriendAdd] Called " .. funcName .. " for " .. id)
+                    end
+                end)
+                break
+            end
         end
+        break
     end
-end)
+end
