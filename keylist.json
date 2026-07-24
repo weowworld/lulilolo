@@ -6,7 +6,11 @@
     "devices": [
       "DEV_6a6222c9_17b2c9ccc"
     ],
-    "created": "2026-07-23T19:43:36.435202"
+    "created": "2026-07-23T19:43:36.435202",
+    "allowed_files": [
+      "1.lua",
+      "2.lua"
+    ]
   },
   "VIPKEYUSERFRIST": {
     "expiry": "2026-07-30T23:59:59",
@@ -16,12 +20,5 @@
       "DEV_6a625fa2_188299dba"
     ],
     "created": "2026-07-23T23:28:10.916792"
-  },
-  "TESTLOLO": {
-    "expiry": "2026-07-25T23:59:59",
-    "active": true,
-    "device_limit": 1,
-    "devices": [],
-    "created": "2026-07-24T23:26:45.730278"
   }
 }
